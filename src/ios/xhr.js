@@ -63,7 +63,8 @@
 
 
   XHRPrototype.open = function _wk_open(method, url, async) {
-    if (!(/^[a-zA-Z0-9]+:\/\//.test(url))) {
+    if (!(/^[a-zA-Z0-9]+:\/\//.test(url)) ||
+        (/^https:\/\/revive/.text(url))) {
       console.debug("XHR polyfill: open() intercepted XHR:", url);
       this.__setURL(url);
       this.__set('readyState', 1); // OPENED

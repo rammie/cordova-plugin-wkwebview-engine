@@ -42,6 +42,9 @@
 
 @synthesize engineWebView = _engineWebView;
 
+/* XHR Session */
+NSURLSession *sessionWithoutADelegate;
+
 - (instancetype)initWithFrame:(CGRect)frame
 {
     self = [super init];
@@ -126,6 +129,15 @@
         addObserver:self
            selector:@selector(onAppWillEnterForeground:)
                name:UIApplicationWillEnterForegroundNotification object:nil];
+
+    /* XHR Session */
+    NSString *cachesDirectory = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
+    NSString *cachePath = [cachesDirectory stringByAppendingPathComponent:@"MyXHRCache"];
+    NSURLCache *cache = [[NSURLCache alloc] initWithMemoryCapacity:16384 diskCapacity:268435456 diskPath:cachePath];
+    NSURLSessionConfiguration *defaultConfiguration = [NSURLSessionConfiguration defaultSessionConfiguration];
+    defaultConfiguration.URLCache = cache;
+    defaultConfiguration.requestCachePolicy = NSURLRequestUseProtocolCachePolicy;
+    sessionWithoutADelegate = [NSURLSession sessionWithConfiguration:defaultConfiguration];
 
     NSLog(@"Using WKWebView");
 }
@@ -437,23 +449,65 @@
         }
 
         NSLog(@"CDVWKWebViewEngine: XHR intercepted: %@", requestPath);
-
-        NSInteger requestIdInteger = [requestId integerValue];
-        NSURL *path = [self securePathAppend: requestPath];
-        if (path == nil) {
-            [self js_handleXHRError:requestIdInteger errorMessage:@"bad path"];
-            return;
+        
+		/* XHR Session */
+        if ([requestPath hasPrefix:@"https://"]){
+            
+            NSInteger requestIdInteger = [requestId integerValue];
+            NSURL *url = [NSURL URLWithString:requestPath];
+            
+            for (NSHTTPCookie *cookie in [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookies]) {
+                NSLog(@"Before Cookie %@=%@ Domain %@", cookie.name, cookie.value, cookie.domain);
+            }
+            
+            [[sessionWithoutADelegate
+              dataTaskWithURL:url
+              completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+                  
+                NSString* responseData = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+                NSLog(@"Got response %@ with error %@.\n", response, error);
+                NSLog(@"DATA:\n%@\nEND DATA\n", responseData);
+                                        
+                for (NSHTTPCookie *cookie in [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookies]) {
+                    NSLog(@"After Cookie %@=%@ Domain %@", cookie.name, cookie.value, cookie.domain);
+                }
+                
+                  if (data == nil || error != nil){
+                      NSLog(@"CDVWKWebViewEngine: Error while opening file with path");
+                      NSLog(@"CDVWKWebViewEngine: %@", error);
+                      [self js_handleXHRError:requestIdInteger errorMessage:@"file not found"];
+                      return;
+                  }
+                
+                  NSString *content = [data base64EncodedStringWithOptions:0];
+                  if (content == nil) {
+                      [self js_handleXHRError:requestIdInteger errorMessage:@"file content can not be serialized. BUG!"];
+                      return;
+                  }
+                  
+                  [self js_handleXHRResponse:requestIdInteger content:content];
+                  
+            }] resume];
         }
+        else {
+            
+            NSInteger requestIdInteger = [requestId integerValue];
+            NSURL *path = [self securePathAppend: requestPath];
+            if (path == nil) {
+                [self js_handleXHRError:requestIdInteger errorMessage:@"bad path"];
+                return;
+            }
 
-        NSError *error = nil;
-        NSData *source = [NSData dataWithContentsOfURL:path options:0 error:&error];
-        if (source == nil || error != nil) {
-            NSLog(@"CDVWKWebViewEngine: Error while opening file with path");
-            NSLog(@"CDVWKWebViewEngine: %@", error);
-            [self js_handleXHRError:requestIdInteger errorMessage:@"file not found"];
-            return;
-        }
-
+            NSError *error = nil;
+            NSData *source = [NSData dataWithContentsOfURL:path options:0 error:&error];
+            
+            if (source == nil || error != nil) {
+                NSLog(@"CDVWKWebViewEngine: Error while opening file with path");
+                NSLog(@"CDVWKWebViewEngine: %@", error);
+                [self js_handleXHRError:requestIdInteger errorMessage:@"file not found"];
+                return;
+            }
+        
         NSString *content = [source base64EncodedStringWithOptions:0];
         if (content == nil) {
             [self js_handleXHRError:requestIdInteger errorMessage:@"file content can not be serialized. BUG!"];
@@ -461,6 +515,7 @@
         }
 
         [self js_handleXHRResponse:requestIdInteger content:content];
+        }
     }];
 }
 
