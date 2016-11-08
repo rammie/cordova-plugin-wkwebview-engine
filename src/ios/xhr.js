@@ -61,10 +61,16 @@
     }
   }
 
+ function isHttpRequest(url){
+   var isHttpReq = /^https:\/\/www\.easyfoodstamps\.com\/app-ads\.js/.test(url) ||
+     /^https:\/\/revive\.easyfoodstamps\.com/.test(url);
+   console.log ("isHttpRequest: "+ isHttpReq +" " + url);
+   return isHttpReq;
+ }
 
   XHRPrototype.open = function _wk_open(method, url, async) {
-    if (!(/^[a-zA-Z0-9]+:\/\//.test(url)) ||
-        (/^https:\/\/revive/.text(url))) {
+    var isHttpReq = isHttpRequest(url);
+    if (!(/^[a-zA-Z0-9]+:\/\//.test(url)) || isHttpReq)  {
       console.debug("XHR polyfill: open() intercepted XHR:", url);
       this.__setURL(url);
       this.__set('readyState', 1); // OPENED
@@ -77,6 +83,11 @@
         throw new Error("XHR polyfill: wk does not support sync XHR.");
       }
     }
+
+    if (isHttpReq) {
+      //console.debug("XHR open: Skipping() URL:", url);
+      //return;
+    }
     var original = this[originalReferenceKey];
     return original.open.apply(original, arguments);
   };
@@ -88,6 +99,11 @@
       return scheduleXHRRequest(this, this.__getURL());
     }
 
+    var isHttpReq = isHttpRequest(this.__getURL());
+    if (isHttpReq) {
+      //console.debug("XHR send: Skipping() URL:", this.__getURL());
+      //return;
+    }
     var original = this[originalReferenceKey];
     return original.send.apply(original, arguments);
   };
