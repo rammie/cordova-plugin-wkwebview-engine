@@ -159,16 +159,16 @@ NSURLSession *sessionWithoutADelegate;
 {
     BOOL title_is_nil = (title == nil);
     BOOL location_is_blank = [[location absoluteString] isEqualToString:@"about:blank"];
-    
+
     BOOL reload = (title_is_nil || location_is_blank);
-    
+
 #ifdef DEBUG
     NSLog(@"%@", @"CDVWKWebViewEngine shouldReloadWebView::");
     NSLog(@"CDVWKWebViewEngine shouldReloadWebView title: %@", title);
     NSLog(@"CDVWKWebViewEngine shouldReloadWebView location: %@", [location absoluteString]);
     NSLog(@"CDVWKWebViewEngine shouldReloadWebView reload: %u", reload);
 #endif
-    
+
     return reload;
 }
 
@@ -449,48 +449,53 @@ NSURLSession *sessionWithoutADelegate;
         }
 
         NSLog(@"CDVWKWebViewEngine: XHR intercepted: %@", requestPath);
-        
-		/* XHR Session */
+
+        /* XHR Session */
         if ([requestPath hasPrefix:@"https://"]){
-            
+
             NSInteger requestIdInteger = [requestId integerValue];
             NSURL *url = [NSURL URLWithString:requestPath];
-            
+
+            /*
             for (NSHTTPCookie *cookie in [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookies]) {
                 NSLog(@"Before Cookie %@=%@ Domain %@", cookie.name, cookie.value, cookie.domain);
             }
-            
+            */
+
             [[sessionWithoutADelegate
               dataTaskWithURL:url
               completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-                  
+
+                /*
                 NSString* responseData = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+
                 NSLog(@"Got response %@ with error %@.\n", response, error);
                 NSLog(@"DATA:\n%@\nEND DATA\n", responseData);
-                                        
+
                 for (NSHTTPCookie *cookie in [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookies]) {
                     NSLog(@"After Cookie %@=%@ Domain %@", cookie.name, cookie.value, cookie.domain);
                 }
-                
+                */
+
                   if (data == nil || error != nil){
                       NSLog(@"CDVWKWebViewEngine: Error while opening file with path");
                       NSLog(@"CDVWKWebViewEngine: %@", error);
                       [self js_handleXHRError:requestIdInteger errorMessage:@"file not found"];
                       return;
                   }
-                
+
                   NSString *content = [data base64EncodedStringWithOptions:0];
                   if (content == nil) {
                       [self js_handleXHRError:requestIdInteger errorMessage:@"file content can not be serialized. BUG!"];
                       return;
                   }
-                  
+
                   [self js_handleXHRResponse:requestIdInteger content:content];
-                  
+
             }] resume];
         }
         else {
-            
+
             NSInteger requestIdInteger = [requestId integerValue];
             NSURL *path = [self securePathAppend: requestPath];
             if (path == nil) {
@@ -500,14 +505,14 @@ NSURLSession *sessionWithoutADelegate;
 
             NSError *error = nil;
             NSData *source = [NSData dataWithContentsOfURL:path options:0 error:&error];
-            
+
             if (source == nil || error != nil) {
                 NSLog(@"CDVWKWebViewEngine: Error while opening file with path");
                 NSLog(@"CDVWKWebViewEngine: %@", error);
                 [self js_handleXHRError:requestIdInteger errorMessage:@"file not found"];
                 return;
             }
-        
+
         NSString *content = [source base64EncodedStringWithOptions:0];
         if (content == nil) {
             [self js_handleXHRError:requestIdInteger errorMessage:@"file content can not be serialized. BUG!"];
