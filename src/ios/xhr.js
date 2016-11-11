@@ -84,10 +84,13 @@
       }
     }
 
-    if (isHttpReq) {
-      //console.debug("XHR open: Skipping() URL:", url);
-      //return;
-    }
+    /*
+     if (isHttpReq) {
+     console.debug("XHR open: Skipping() URL:", url);
+     return;
+     }
+     */
+
     var original = this[originalReferenceKey];
     return original.open.apply(original, arguments);
   };
@@ -99,11 +102,14 @@
       return scheduleXHRRequest(this, this.__getURL());
     }
 
+    /*
     var isHttpReq = isHttpRequest(this.__getURL());
     if (isHttpReq) {
-      //console.debug("XHR send: Skipping() URL:", this.__getURL());
-      //return;
+      console.debug("XHR send: Skipping() URL:", this.__getURL());
+      return;
     }
+     */
+
     var original = this[originalReferenceKey];
     return original.send.apply(original, arguments);
   };
